@@ -3,7 +3,7 @@
 public abstract class ValueObject
 {
         protected ValueObject() {}
-
+        
         public override bool Equals(object? other)
         {
             if (other is null) return false;

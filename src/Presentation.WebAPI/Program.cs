@@ -1,35 +1,54 @@
-using System.Text.Json.Serialization;
+using Core.Application.Extensions;
+using Core.QueryContract.Extensions;
+using Infrastructure.EfcDmPersistence.Extensions;
+using Infrastructure.EfcQueries.Extensions;
+using Microsoft.OpenApi.Models;
+using VEA.Core.Domain;
+using VEA.Core.Tools.ObjectMapper;
 
-var builder = WebApplication.CreateSlimBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.ConfigureHttpJsonOptions(options =>
+// Add services to the container.
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
 {
-    options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "VEA.Presentation.WebAPI", Version = "v1" });
+    c.CustomSchemaIds(type => type.FullName?.Replace("+", "_"));
 });
+
+builder.Services.AddControllers();
+
+builder.Services.RegisterCoreServices();
+string databasePath = Path.Combine(
+    Directory.GetCurrentDirectory(),
+    "..",
+    "..",
+    "Infrastructure",
+    "VEA.Infrastructure.EfcDmPersistence",
+    "VEADatabaseProduction.db"
+);
+
+string connectionString = $"Data Source={databasePath}";
+builder.Services.RegisterPersistence(connectionString);
+builder.Services.RegisterCommandHandlers();
+builder.Services.RegisterCommandDispatcher();
+builder.Services.RegisterQueryHandlers(connectionString);
+builder.Services.RegisterQueryDispatcher();
+
+builder.Services.AddScoped<IMapper, ObjectMapper>();
 
 var app = builder.Build();
 
-var sampleTodos = new Todo[]
-{
-    new(1, "Walk the dog"),
-    new(2, "Do the dishes", DateOnly.FromDateTime(DateTime.Now)),
-    new(3, "Do the laundry", DateOnly.FromDateTime(DateTime.Now.AddDays(1))),
-    new(4, "Clean the bathroom"),
-    new(5, "Clean the car", DateOnly.FromDateTime(DateTime.Now.AddDays(2)))
-};
+app.MapControllers();
 
-var todosApi = app.MapGroup("/todos");
-todosApi.MapGet("/", () => sampleTodos);
-todosApi.MapGet("/{id}", (int id) =>
-    sampleTodos.FirstOrDefault(a => a.Id == id) is { } todo
-        ? Results.Ok(todo)
-        : Results.NotFound());
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
 
 app.Run();
-
-public record Todo(int Id, string? Title, DateOnly? DueBy = null, bool IsComplete = false);
-
-[JsonSerializable(typeof(Todo[]))]
-internal partial class AppJsonSerializerContext : JsonSerializerContext
-{
-}

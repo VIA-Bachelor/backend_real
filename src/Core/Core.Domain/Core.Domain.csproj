@@ -14,4 +14,8 @@
       <ProjectReference Include="..\Tools\Core.Tools.OperationResult\Core.Tools.OperationResult.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Aggregates\Users\Entities\" />
+    </ItemGroup>
+
 </Project>
